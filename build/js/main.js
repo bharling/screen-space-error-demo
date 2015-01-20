@@ -1,5 +1,5 @@
 (function() {
-  var DEBUG, DEBUG_OBJECT, MAX_DEPTH, Patch, animate, calculateSSE, camera, clock, controls, createObjects, createUI, initScene, object, patch, randomColor, randomMaterial, render, renderer, scene, span, updateErrorStat;
+  var DEBUG, DEBUG_OBJECT, MAX_DEPTH, Patch, animate, calculateSSE, camera, clock, controls, createObjects, createUI, fragSrc, initScene, object, patch, randomColor, randomMaterial, render, renderer, scene, shaderMaterial, span, updateErrorStat, vertSrc;
 
   scene = camera = renderer = object = span = patch = controls = null;
 
@@ -22,9 +22,21 @@
     });
   };
 
+  vertSrc = document.getElementById('vert').textContent;
+
+  fragSrc = document.getElementById('frag').textContent;
+
+  shaderMaterial = new THREE.ShaderMaterial({
+    vertexShader: vertSrc,
+    vertexColors: THREE.VertexColors,
+    fragmentShader: fragSrc,
+    wireframe: true,
+    side: THREE.DoubleSide
+  });
+
   Patch = (function() {
     function Patch(center, halfSize, maxDepth) {
-      var geom, max, min, size;
+      var color, geom, max, min, size;
       this.center = center;
       this.halfSize = halfSize;
       this.maxDepth = maxDepth != null ? maxDepth : 10;
@@ -36,7 +48,9 @@
       if (DEBUG) {
         size = this.box.size();
         geom = new THREE.PlaneBufferGeometry(size.x, size.y, 1, 1);
-        this.object = new THREE.Mesh(geom, randomMaterial());
+        geom.applyMatrix(new THREE.Matrix4().makeTranslation(0.0, 0.0, -100.0));
+        color = new THREE.Color(randomColor());
+        this.object = new THREE.Mesh(geom, shaderMaterial);
         this.object.position.set(this.center.x, this.center.y, this.center.z);
         DEBUG_OBJECT.add(this.object);
       }

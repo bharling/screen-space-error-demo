@@ -12,7 +12,17 @@ randomColor = () ->
   
 randomMaterial = () ->
   new THREE.MeshBasicMaterial color : randomColor(), side : THREE.DoubleSide
+  
+vertSrc = document.getElementById('vert').textContent;
+fragSrc = document.getElementById('frag').textContent;
 
+shaderMaterial = new THREE.ShaderMaterial(
+  vertexShader: vertSrc,
+  vertexColors: THREE.VertexColors,
+  fragmentShader: fragSrc,
+  wireframe: true,
+  side: THREE.DoubleSide
+)
 
 class Patch
   constructor : (@center, @halfSize, @maxDepth=10) ->
@@ -25,7 +35,9 @@ class Patch
     if DEBUG
       size = @box.size()
       geom = new THREE.PlaneBufferGeometry( size.x, size.y, 1, 1 )
-      @object = new THREE.Mesh geom, randomMaterial()
+      geom.applyMatrix new THREE.Matrix4().makeTranslation( 0.0, 0.0, -100.0 )
+      color = new THREE.Color( randomColor() )
+      @object = new THREE.Mesh geom, shaderMaterial
       @object.position.set @center.x, @center.y, @center.z
       DEBUG_OBJECT.add @object
 
