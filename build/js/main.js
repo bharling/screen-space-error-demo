@@ -47,11 +47,10 @@
       this.children = null;
       if (DEBUG) {
         size = this.box.size();
-        geom = new THREE.PlaneBufferGeometry(size.x, size.y, 1, 1);
-        geom.applyMatrix(new THREE.Matrix4().makeTranslation(0.0, 0.0, -100.0));
+        geom = new THREE.PlaneGeometry(size.x, size.y, 1, 1);
+        geom.applyMatrix(new THREE.Matrix4().makeTranslation(this.center.x, this.center.y, this.center.z));
         color = new THREE.Color(randomColor());
         this.object = new THREE.Mesh(geom, shaderMaterial);
-        this.object.position.set(this.center.x, this.center.y, this.center.z);
         DEBUG_OBJECT.add(this.object);
       }
     }
@@ -73,42 +72,18 @@
       p = this.getScreenSpaceError(camera);
       has_error = p > (1.0 / this.maxDepth);
       if (this.children != null) {
-        if (has_error) {
-          _ref = this.children;
-          _results = [];
-          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-            c = _ref[_i];
-            _results.push(c.update(camera));
-          }
-          return _results;
-        } else {
-          return this.unsplit();
+        _ref = this.children;
+        _results = [];
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          c = _ref[_i];
+          _results.push(c.update(camera));
         }
+        return _results;
       } else {
         if (has_error) {
           return this.split();
         }
       }
-    };
-
-    Patch.prototype.getMesh = function(parentObject) {
-      var c, geom, size, _i, _len, _ref;
-      this.parentObject = parentObject;
-      this.parentObject || (this.parentObject = new THREE.Object3D());
-      if (this.children == null) {
-        size = this.box.size();
-        geom = new THREE.PlaneGeometry(size.x, size.y, 1, 1);
-        this.object = new THREE.Mesh(geom, randomMaterial());
-        this.object.position.set(this.center.x, this.center.y, this.center.z);
-        parentObject.add(this.object);
-      } else {
-        _ref = this.children;
-        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-          c = _ref[_i];
-          c.getMesh(parentObject);
-        }
-      }
-      return parentObject;
     };
 
     Patch.prototype.split = function() {
@@ -160,7 +135,10 @@
   };
 
   createObjects = function() {
-    patch = new Patch(scene.position.clone(), 200, MAX_DEPTH);
+    var pos;
+    pos = scene.position.clone();
+    pos.setZ(200.0);
+    patch = new Patch(pos, 100, MAX_DEPTH);
     return scene.add(DEBUG_OBJECT);
   };
 

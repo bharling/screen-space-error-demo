@@ -34,11 +34,10 @@ class Patch
     
     if DEBUG
       size = @box.size()
-      geom = new THREE.PlaneBufferGeometry( size.x, size.y, 1, 1 )
-      geom.applyMatrix new THREE.Matrix4().makeTranslation( 0.0, 0.0, -100.0 )
+      geom = new THREE.PlaneGeometry( size.x, size.y, 1, 1 )
+      geom.applyMatrix new THREE.Matrix4().makeTranslation( @center.x, @center.y, @center.z )
       color = new THREE.Color( randomColor() )
       @object = new THREE.Mesh geom, shaderMaterial
-      @object.position.set @center.x, @center.y, @center.z
       DEBUG_OBJECT.add @object
 
       
@@ -63,29 +62,11 @@ class Patch
     has_error = p > (1.0 / @maxDepth)
     
     if @children?
-      if has_error
-        for c in @children
-          c.update camera
-      else
-        @unsplit()
+      for c in @children
+        c.update camera
     else
       if has_error
         @split()
-    
-    
-    
-  getMesh : (@parentObject) ->
-    @parentObject or= new THREE.Object3D()
-    if !@children?
-      size = @box.size()
-      geom = new THREE.PlaneGeometry( size.x, size.y, 1, 1 )
-      @object = new THREE.Mesh geom, randomMaterial()
-      @object.position.set @center.x, @center.y, @center.z
-      parentObject.add @object
-    else
-      for c in @children
-        c.getMesh parentObject
-    parentObject
     
     
   split: () ->
@@ -146,7 +127,9 @@ createObjects = () ->
   #object = new THREE.Mesh new THREE.BoxGeometry( 100, 100, 100, 4, 4, 4), material
   #scene.add object
   #object
-  patch = new Patch scene.position.clone(), 200, MAX_DEPTH
+  pos = scene.position.clone()
+  pos.setZ 200.0
+  patch = new Patch pos, 100, MAX_DEPTH
   scene.add DEBUG_OBJECT
     
   
