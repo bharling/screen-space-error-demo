@@ -34,7 +34,7 @@ class Patch
     
     if DEBUG
       size = @box.size()
-      geom = new THREE.PlaneGeometry( size.x, size.y, 1, 1 )
+      geom = new THREE.PlaneGeometry( size.x, size.y, 2, 2 )
       geom.applyMatrix new THREE.Matrix4().makeTranslation( @center.x, @center.y, @center.z )
       color = new THREE.Color( randomColor() )
       @object = new THREE.Mesh geom, shaderMaterial

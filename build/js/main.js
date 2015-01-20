@@ -47,7 +47,7 @@
       this.children = null;
       if (DEBUG) {
         size = this.box.size();
-        geom = new THREE.PlaneGeometry(size.x, size.y, 1, 1);
+        geom = new THREE.PlaneGeometry(size.x, size.y, 2, 2);
         geom.applyMatrix(new THREE.Matrix4().makeTranslation(this.center.x, this.center.y, this.center.z));
         color = new THREE.Color(randomColor());
         this.object = new THREE.Mesh(geom, shaderMaterial);
