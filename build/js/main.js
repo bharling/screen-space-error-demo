@@ -1,5 +1,5 @@
 (function() {
-  var DEBUG, DEBUG_OBJECT, MAX_DEPTH, Patch, animate, calculateSSE, camera, clock, controls, createObjects, createUI, fragSrc, initScene, object, patch, randomColor, randomMaterial, render, renderer, scene, shaderMaterial, span, updateErrorStat, vertSrc;
+  var DEBUG, DEBUG_OBJECT, MAX_DEPTH, Patch, PatchFactory, animate, calculateSSE, camera, clock, controls, createObjects, createUI, fragSrc, initScene, object, patch, randomColor, randomMaterial, render, renderer, scene, shaderMaterial, span, updateErrorStat, vertSrc;
 
   scene = camera = renderer = object = span = patch = controls = null;
 
@@ -34,12 +34,37 @@
     side: THREE.DoubleSide
   });
 
+  PatchFactory = (function() {
+    function PatchFactory() {}
+
+    PatchFactory.geom = new THREE.PlaneBufferGeometry(1.0, 1.0, 8, 8);
+
+    PatchFactory.cache = [];
+
+    PatchFactory.get = function() {
+      var mesh;
+      if (PatchFactory.cache.length > 0) {
+        return PatchFactory.cache.pop();
+      }
+      mesh = new THREE.Mesh(PatchFactory.geom, shaderMaterial);
+      return mesh;
+    };
+
+    PatchFactory.recycle = function(mesh) {
+      return PatchFactory.cache.push(mesh);
+    };
+
+    return PatchFactory;
+
+  })();
+
   Patch = (function() {
-    function Patch(center, halfSize, maxDepth) {
-      var color, geom, max, min, size;
+    function Patch(center, halfSize, parent, maxDepth) {
+      var max, min, size;
       this.center = center;
       this.halfSize = halfSize;
-      this.maxDepth = maxDepth != null ? maxDepth : 10;
+      this.parent = parent;
+      this.maxDepth = maxDepth != null ? maxDepth : 3;
       this.position = this.center.clone();
       min = new THREE.Vector2(this.center.x - this.halfSize, this.center.y + this.halfSize);
       max = new THREE.Vector2(this.center.x + this.halfSize, this.center.y - this.halfSize);
@@ -47,10 +72,11 @@
       this.children = null;
       if (DEBUG) {
         size = this.box.size();
-        geom = new THREE.PlaneGeometry(size.x, size.y, 2, 2);
-        geom.applyMatrix(new THREE.Matrix4().makeTranslation(this.center.x, this.center.y, this.center.z));
-        color = new THREE.Color(randomColor());
-        this.object = new THREE.Mesh(geom, shaderMaterial);
+        this.object = PatchFactory.get();
+        this.object.visible = true;
+        this.object.scale.x = size.x;
+        this.object.scale.y = size.y;
+        this.object.position.set(this.center.x, this.center.y, this.center.z);
         DEBUG_OBJECT.add(this.object);
       }
     }
@@ -59,30 +85,46 @@
 
     Patch.prototype.unsplit = function() {};
 
+    Patch.prototype.merge = function() {
+      var c, _i, _len, _ref;
+      if (this.children == null) {
+        return;
+      }
+      _ref = this.children;
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        c = _ref[_i];
+        PatchFactory.recycle(c.object);
+        DEBUG_OBJECT.remove(c.object);
+        c.object.visible = false;
+        c.object = null;
+      }
+      this.children = null;
+      return this.object.visible = true;
+    };
+
     Patch.prototype.getScreenSpaceError = function(camera) {
       var d, lambda, me;
       lambda = window.innerHeight / camera.fov;
       d = this.position.distanceTo(camera.position);
-      me = 1.6;
+      me = 1.2;
       return lambda * (me / d);
     };
 
     Patch.prototype.update = function(camera) {
-      var c, has_error, p, _i, _len, _ref, _results;
+      var c, has_error, p, _i, _len, _ref;
       p = this.getScreenSpaceError(camera);
       has_error = p > (1.0 / this.maxDepth);
       if (this.children != null) {
         _ref = this.children;
-        _results = [];
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
           c = _ref[_i];
-          _results.push(c.update(camera));
+          c.update(camera);
         }
-        return _results;
+      }
+      if (has_error) {
+        return this.split();
       } else {
-        if (has_error) {
-          return this.split();
-        }
+        return this.merge();
       }
     };
 
@@ -93,7 +135,7 @@
       }
       qs = this.halfSize / 2;
       depth = this.maxDepth - 1;
-      if (depth <= 1) {
+      if (depth <= 0) {
         return;
       }
       if (this.object != null) {
@@ -104,10 +146,10 @@
       se = this.center.clone().set(this.center.x - qs, this.center.y - qs, 0);
       sw = this.center.clone().set(this.center.x + qs, this.center.y - qs, 0);
       this.children = [];
-      this.children.push(new Patch(ne, qs, depth));
-      this.children.push(new Patch(nw, qs, depth));
-      this.children.push(new Patch(se, qs, depth));
-      return this.children.push(new Patch(sw, qs, depth));
+      this.children.push(new Patch(ne, qs, this, depth));
+      this.children.push(new Patch(nw, qs, this, depth));
+      this.children.push(new Patch(se, qs, this, depth));
+      return this.children.push(new Patch(sw, qs, this, depth));
     };
 
     return Patch;
@@ -137,8 +179,7 @@
   createObjects = function() {
     var pos;
     pos = scene.position.clone();
-    pos.setZ(200.0);
-    patch = new Patch(pos, 100, MAX_DEPTH);
+    patch = new Patch(pos, 100, null, MAX_DEPTH);
     return scene.add(DEBUG_OBJECT);
   };
 

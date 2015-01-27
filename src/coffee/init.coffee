@@ -24,8 +24,23 @@ shaderMaterial = new THREE.ShaderMaterial(
   side: THREE.DoubleSide
 )
 
+
+class PatchFactory
+  @geom : new THREE.PlaneBufferGeometry(1.0, 1.0, 8, 8)
+  @cache : []
+  
+  @get : () ->
+    if PatchFactory.cache.length > 0
+      return PatchFactory.cache.pop()
+    mesh = new THREE.Mesh( PatchFactory.geom, shaderMaterial )
+    return mesh
+    
+  @recycle : (mesh) ->
+    PatchFactory.cache.push mesh
+    
+
 class Patch
-  constructor : (@center, @halfSize, @maxDepth=10) ->
+  constructor : (@center, @halfSize, @parent, @maxDepth=3) ->
     @position = @center.clone()
     min = new THREE.Vector2 @center.x - @halfSize, @center.y + @halfSize
     max = new THREE.Vector2 @center.x + @halfSize, @center.y - @halfSize
@@ -34,10 +49,16 @@ class Patch
     
     if DEBUG
       size = @box.size()
-      geom = new THREE.PlaneGeometry( size.x, size.y, 2, 2 )
-      geom.applyMatrix new THREE.Matrix4().makeTranslation( @center.x, @center.y, @center.z )
-      color = new THREE.Color( randomColor() )
-      @object = new THREE.Mesh geom, shaderMaterial
+      @object = PatchFactory.get()
+      @object.visible = true
+      @object.scale.x = size.x
+      @object.scale.y = size.y
+      @object.position.set( @center.x, @center.y, @center.z )
+      
+      #geom = new THREE.PlaneGeometry( size.x, size.y, 2, 2 )
+      #geom.applyMatrix new THREE.Matrix4().makeTranslation( @center.x, @center.y, @center.z )
+      #color = new THREE.Color( randomColor() )
+      #@object = new THREE.Mesh geom, shaderMaterial
       DEBUG_OBJECT.add @object
 
       
@@ -46,12 +67,27 @@ class Patch
       
   unsplit : () ->
     
+  merge: () ->
+    if !@children?
+      return
+      
+    for c in @children
+      PatchFactory.recycle c.object
+      DEBUG_OBJECT.remove c.object
+      c.object.visible = false
+      c.object = null
+    @children = null
+    @object.visible = true
+      
+      
+    
+    
     
     
   getScreenSpaceError: (camera) ->
     lambda = window.innerHeight / camera.fov
     d = @position.distanceTo camera.position
-    me = 1.6
+    me = 1.2
     lambda * (me / d)
   
   update: (camera) ->
@@ -61,12 +97,17 @@ class Patch
     
     has_error = p > (1.0 / @maxDepth)
     
+    
     if @children?
       for c in @children
         c.update camera
+
+    if has_error
+      @split()
     else
-      if has_error
-        @split()
+      @merge()
+    
+    
     
     
   split: () ->
@@ -74,7 +115,7 @@ class Patch
       return
     qs = @halfSize / 2
     depth = @maxDepth - 1
-    if depth <= 1
+    if depth <= 0
       return
       
     if @object?
@@ -86,10 +127,10 @@ class Patch
     sw = @center.clone().set( @center.x + qs, @center.y - qs, 0 )
     
     @children = [] 
-    @children.push new Patch ne, qs, depth
-    @children.push new Patch nw, qs, depth
-    @children.push new Patch se, qs, depth
-    @children.push new Patch sw, qs, depth
+    @children.push new Patch ne, qs, @, depth
+    @children.push new Patch nw, qs, @, depth
+    @children.push new Patch se, qs, @, depth
+    @children.push new Patch sw, qs, @, depth
 
     
     
@@ -128,8 +169,7 @@ createObjects = () ->
   #scene.add object
   #object
   pos = scene.position.clone()
-  pos.setZ 200.0
-  patch = new Patch pos, 100, MAX_DEPTH
+  patch = new Patch pos, 100, null, MAX_DEPTH
   scene.add DEBUG_OBJECT
     
   
